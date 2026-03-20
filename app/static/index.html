@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handwriting Recognition Web</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: white;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+        #canvas-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+            overflow: hidden;
+            position: relative;
+        }
+        canvas {
+            background-color: black;
+            cursor: crosshair;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 100%;
+            max-height: 100%;
+        }
+        #panel {
+            width: 320px;
+            background-color: #252526;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-left: 1px solid #333;
+            overflow-y: auto;
+        }
+        h2 {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-top: 0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+        }
+        button {
+            background-color: #3c3c3c;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #555; }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        input {
+            padding: 10px;
+            font-size: 1.2rem;
+            text-align: center;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+        #pred-label {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00ffcc;
+            text-align: center;
+            margin: 20px 0 5px 0;
+        }
+        #conf-bar-container {
+            height: 18px;
+            background-color: #1e1e1e;
+            border-radius: 9px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        #conf-bar {
+            height: 100%;
+            background-color: #007acc;
+            width: 0%;
+            transition: width 0.3s ease-out;
+        }
+        #status {
+            text-align: center;
+            color: #ccc;
+            margin-top: auto;
+            min-height: 40px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="whiteboard" width="800" height="600"></canvas>
+    </div>
+    
+    <div id="panel">
+        <h2>CONTROL PANEL</h2>
+        
+        <button id="btn-predict">Predict (Enter)</button>
+        <button id="btn-undo">Undo (Ctrl+Z)</button>
+        <button id="btn-clear">Clear</button>
+        
+        <div class="input-group">
+            <label for="label-entry">Label (A-Z)</label>
+            <input type="text" id="label-entry" value="A" maxlength="1">
+        </div>
+        <button id="btn-save">Save Sample</button>
+        <button id="btn-retrain" style="margin-top: auto;">Retrain Model</button>
+
+        <div id="pred-label">Prediction: —</div>
+        <div id="conf-bar-container">
+            <div id="conf-bar"></div>
+        </div>
+
+        <div id="status">Ready</div>
+    </div>
+
+    <script src="/script.js"></script>
+</body>
+</html>
