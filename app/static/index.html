@@ -197,7 +197,6 @@
         .status-dot.busy { background: var(--accent-2); box-shadow: 0 0 8px var(--accent-2); animation: none; }
         .status-dot.error { background: #ff4d4d; box-shadow: 0 0 8px #ff4d4d; animation: none; }
 
-        /* Panel sections */
         .panel-body {
             flex: 1;
             overflow-y: auto;
@@ -206,6 +205,9 @@
             flex-direction: column;
             gap: 16px;
             scrollbar-width: none;
+        }
+        .panel-body > * {
+            flex-shrink: 0;
         }
         .panel-body::-webkit-scrollbar { display: none; }
 
@@ -251,6 +253,7 @@
             padding: 8px 0;
             letter-spacing: -0.03em;
             color: var(--accent);
+            text-align: center;
             text-shadow: 0 0 40px rgba(124,111,255,0.4);
             min-height: 1.2em;
             transition: all 0.2s ease;
