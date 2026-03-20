@@ -3,133 +3,809 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Handwriting Recognition Web</title>
+    <title>NeuralScript — Handwriting Recognition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1e1e1e;
-            color: white;
-            margin: 0;
-            display: flex;
-            height: 100vh;
+        :root {
+            --bg: #0a0a0f;
+            --surface: #111118;
+            --surface-2: #16161f;
+            --border: rgba(255,255,255,0.07);
+            --border-bright: rgba(255,255,255,0.14);
+            --accent: #7c6fff;
+            --accent-2: #ff6b9d;
+            --accent-3: #00e5c3;
+            --text: #e8e8f0;
+            --text-muted: #6b6b80;
+            --text-dim: #3a3a50;
+            --glow: 0 0 40px rgba(124,111,255,0.15);
+            --radius: 12px;
+            --mono: 'Space Mono', monospace;
+            --display: 'Syne', sans-serif;
         }
-        #canvas-container {
-            flex-grow: 1;
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--display);
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
             display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: black;
             overflow: hidden;
             position: relative;
         }
+
+        /* Ambient background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(124,111,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(124,111,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Top-left ambient glow */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -200px;
+            left: -200px;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(124,111,255,0.08) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─── CANVAS AREA ─── */
+        #canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--bg);
+            position: relative;
+            z-index: 1;
+            padding: 40px;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            display: inline-flex;
+        }
+
+        /* Corner brackets */
+        .canvas-wrapper::before,
+        .canvas-wrapper::after,
+        .canvas-inner::before,
+        .canvas-inner::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: var(--accent);
+            border-style: solid;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .canvas-wrapper::before { top: -6px; left: -6px; border-width: 2px 0 0 2px; }
+        .canvas-wrapper::after  { top: -6px; right: -6px; border-width: 2px 2px 0 0; }
+        .canvas-inner::before   { bottom: -6px; left: -6px; border-width: 0 0 2px 2px; }
+        .canvas-inner::after    { bottom: -6px; right: -6px; border-width: 0 2px 2px 0; }
+        .canvas-inner { position: absolute; inset: 0; pointer-events: none; }
+
         canvas {
-            background-color: black;
+            display: block;
+            background: #060608;
             cursor: crosshair;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            border: 1px solid var(--border-bright);
             max-width: 100%;
             max-height: 100%;
+            box-shadow:
+                0 0 0 1px rgba(124,111,255,0.1),
+                0 20px 60px rgba(0,0,0,0.6),
+                inset 0 1px 0 rgba(255,255,255,0.04);
         }
+
+        /* Canvas label */
+        .canvas-label {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* Canvas coordinate readout */
+        #canvas-coords {
+            position: absolute;
+            bottom: -26px;
+            right: 0;
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+        }
+
+        /* ─── PANEL ─── */
         #panel {
-            width: 320px;
-            background-color: #252526;
-            padding: 20px;
-            box-sizing: border-box;
+            width: 300px;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            gap: 15px;
-            border-left: 1px solid #333;
-            overflow-y: auto;
-        }
-        h2 {
-            text-align: center;
-            font-size: 1.2rem;
-            margin-top: 0;
-            border-bottom: 1px solid #444;
-            padding-bottom: 15px;
-        }
-        button {
-            background-color: #3c3c3c;
-            color: white;
-            border: none;
-            padding: 12px;
-            font-size: 1rem;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-        button:hover { background-color: #555; }
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            margin-top: 10px;
-        }
-        input {
-            padding: 10px;
-            font-size: 1.2rem;
-            text-align: center;
-            background: #333;
-            color: white;
-            border: 1px solid #555;
-            border-radius: 4px;
-        }
-        #pred-label {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #00ffcc;
-            text-align: center;
-            margin: 20px 0 5px 0;
-        }
-        #conf-bar-container {
-            height: 18px;
-            background-color: #1e1e1e;
-            border-radius: 9px;
+            position: relative;
+            z-index: 1;
             overflow: hidden;
-            margin-bottom: 20px;
-            border: 1px solid #333;
+        }
+
+        /* Panel top bar */
+        .panel-header {
+            padding: 24px 24px 20px;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            background: linear-gradient(180deg, rgba(124,111,255,0.05) 0%, transparent 100%);
+        }
+
+        .panel-header-eyebrow {
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 0.3em;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .panel-title {
+            font-family: var(--display);
+            font-weight: 800;
+            font-size: 1.3rem;
+            letter-spacing: -0.02em;
+            line-height: 1;
+            background: linear-gradient(135deg, var(--text) 0%, rgba(232,232,240,0.6) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Status indicator */
+        .status-dot {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-3);
+            box-shadow: 0 0 8px var(--accent-3);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-3); }
+            50% { opacity: 0.4; box-shadow: 0 0 3px var(--accent-3); }
+        }
+        .status-dot.busy { background: var(--accent-2); box-shadow: 0 0 8px var(--accent-2); animation: none; }
+        .status-dot.error { background: #ff4d4d; box-shadow: 0 0 8px #ff4d4d; animation: none; }
+
+        /* Panel sections */
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scrollbar-width: none;
+        }
+        .panel-body::-webkit-scrollbar { display: none; }
+
+        /* ─── PREDICTION CARD ─── */
+        .pred-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        .pred-card.active {
+            border-color: rgba(124,111,255,0.3);
+            box-shadow: 0 0 30px rgba(124,111,255,0.07);
+        }
+        .pred-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(124,111,255,0.4), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .pred-card.active::before { opacity: 1; }
+
+        .pred-eyebrow {
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 0.25em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        #pred-label {
+            font-family: var(--display);
+            font-weight: 800;
+            font-size: 3.5rem;
+            line-height: 1;
+            letter-spacing: -0.03em;
+            color: var(--accent);
+            text-shadow: 0 0 40px rgba(124,111,255,0.4);
+            min-height: 1em;
+            transition: all 0.2s ease;
+        }
+        #pred-label.predicted {
+            animation: pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes pop {
+            0% { transform: scale(0.85); }
+            100% { transform: scale(1); }
+        }
+
+        .conf-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 14px;
+            margin-bottom: 6px;
+        }
+        .conf-label {
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        #conf-value {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--accent-3);
+        }
+
+        #conf-bar-container {
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+            overflow: hidden;
         }
         #conf-bar {
             height: 100%;
-            background-color: #007acc;
             width: 0%;
-            transition: width 0.3s ease-out;
+            background: linear-gradient(90deg, var(--accent), var(--accent-3));
+            border-radius: 2px;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 8px rgba(0,229,195,0.4);
         }
-        #status {
+
+        /* ─── SECTION LABELS ─── */
+        .section-label {
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 0.25em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            padding: 0 0 8px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 4px;
+        }
+
+        /* ─── BUTTON GROUP ─── */
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .btn-group.single { grid-template-columns: 1fr; }
+
+        button {
+            font-family: var(--display);
+            font-weight: 600;
+            font-size: 0.78rem;
+            letter-spacing: 0.03em;
+            cursor: pointer;
+            border-radius: 8px;
+            border: 1px solid var(--border-bright);
+            padding: 11px 14px;
+            transition: all 0.15s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Default ghost button */
+        button.ghost {
+            background: transparent;
+            color: var(--text);
+        }
+        button.ghost:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.2);
+        }
+        button.ghost:active { transform: scale(0.97); }
+
+        /* Accent primary */
+        button.primary {
+            background: var(--accent);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 20px rgba(124,111,255,0.3);
+        }
+        button.primary:hover {
+            background: #9589ff;
+            box-shadow: 0 4px 28px rgba(124,111,255,0.5);
+        }
+        button.primary:active { transform: scale(0.97); }
+
+        /* Danger */
+        button.danger {
+            background: transparent;
+            color: var(--accent-2);
+            border-color: rgba(255,107,157,0.2);
+        }
+        button.danger:hover {
+            background: rgba(255,107,157,0.08);
+            border-color: rgba(255,107,157,0.4);
+        }
+
+        /* Success */
+        button.success {
+            background: transparent;
+            color: var(--accent-3);
+            border-color: rgba(0,229,195,0.2);
+        }
+        button.success:hover {
+            background: rgba(0,229,195,0.07);
+            border-color: rgba(0,229,195,0.4);
+        }
+
+        button .btn-icon {
+            margin-right: 6px;
+            font-size: 0.85em;
+        }
+
+        /* ─── INPUT FIELD ─── */
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .field label {
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: stretch;
+            border: 1px solid var(--border-bright);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+            background: var(--surface-2);
+        }
+        .input-wrapper:focus-within {
+            border-color: rgba(124,111,255,0.5);
+            box-shadow: 0 0 0 3px rgba(124,111,255,0.1);
+        }
+
+        .input-badge {
+            padding: 0 12px;
+            background: rgba(124,111,255,0.1);
+            border-right: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--accent);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px 14px;
+            font-family: var(--mono);
+            font-size: 1.5rem;
+            font-weight: 700;
             text-align: center;
-            color: #ccc;
-            margin-top: auto;
-            min-height: 40px;
-            font-size: 0.9rem;
+            text-transform: uppercase;
+            background: transparent;
+            color: var(--text);
+            border: none;
+            outline: none;
+            letter-spacing: 0.1em;
+        }
+
+        /* ─── STATUS BAR ─── */
+        .panel-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
+        }
+
+        #status {
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #status .status-text { flex: 1; }
+
+        /* ─── TRAINING SECTION ─── */
+        .train-section {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        /* ─── DIVIDER ─── */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 2px 0;
+        }
+
+        /* ─── KEYBOARD HINTS ─── */
+        .kb-hints {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .kb-hint {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .kb-hint span {
+            font-family: var(--mono);
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        kbd {
+            font-family: var(--mono);
+            font-size: 9px;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-bright);
+            border-radius: 4px;
+            padding: 2px 6px;
+            letter-spacing: 0.05em;
+        }
+
+        /* Scrollbar for panel-body */
+        .panel-body { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+        
+        /* loading shimmer */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .shimmer {
+            background: linear-gradient(90deg, transparent 25%, rgba(124,111,255,0.1) 50%, transparent 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
         }
     </style>
 </head>
 <body>
+
+    <!-- ─── CANVAS AREA ─── -->
     <div id="canvas-container">
-        <canvas id="whiteboard" width="800" height="600"></canvas>
+        <div class="canvas-wrapper">
+            <div class="canvas-inner"></div>
+            <span class="canvas-label">Drawing Canvas · 800 × 600</span>
+            <canvas id="whiteboard" width="800" height="600"></canvas>
+            <span id="canvas-coords">x: 000 · y: 000</span>
+        </div>
     </div>
-    
+
+    <!-- ─── CONTROL PANEL ─── -->
     <div id="panel">
-        <h2>CONTROL PANEL</h2>
-        
-        <button id="btn-predict">Predict (Enter)</button>
-        <button id="btn-undo">Undo (Ctrl+Z)</button>
-        <button id="btn-clear">Clear</button>
-        
-        <div class="input-group">
-            <label for="label-entry">Label (A-Z)</label>
-            <input type="text" id="label-entry" value="A" maxlength="1">
-        </div>
-        <button id="btn-save">Save Sample</button>
-        <button id="btn-retrain" style="margin-top: auto;">Retrain Model</button>
-
-        <div id="pred-label">Prediction: —</div>
-        <div id="conf-bar-container">
-            <div id="conf-bar"></div>
+        <div class="panel-header">
+            <div class="panel-header-eyebrow">NeuralScript v1.0</div>
+            <div class="panel-title">Handwriting<br>Recognition</div>
+            <div class="status-dot" id="status-dot"></div>
         </div>
 
-        <div id="status">Ready</div>
+        <div class="panel-body">
+
+            <!-- Prediction -->
+            <div class="pred-card" id="pred-card">
+                <div class="pred-eyebrow">Live Prediction</div>
+                <div id="pred-label">—</div>
+                <div class="conf-row">
+                    <span class="conf-label">Confidence</span>
+                    <span id="conf-value">—</span>
+                </div>
+                <div id="conf-bar-container">
+                    <div id="conf-bar"></div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div>
+                <div class="section-label">Canvas</div>
+                <div class="btn-group" style="margin-top: 8px;">
+                    <button class="primary" id="btn-predict">
+                        <span class="btn-icon">⚡</span>Predict
+                    </button>
+                    <button class="ghost" id="btn-undo">
+                        <span class="btn-icon">↩</span>Undo
+                    </button>
+                    <button class="danger btn-group-full" id="btn-clear" style="grid-column: 1 / -1;">
+                        <span class="btn-icon">✕</span>Clear Canvas
+                    </button>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Training -->
+            <div>
+                <div class="section-label">Training</div>
+                <div class="train-section" style="margin-top: 8px;">
+                    <div class="field">
+                        <label>Label</label>
+                        <div class="input-wrapper">
+                            <span class="input-badge">Char</span>
+                            <input type="text" id="label-entry" value="A" maxlength="1">
+                        </div>
+                    </div>
+                    <div class="btn-group" style="margin-top: 10px;">
+                        <button class="success" id="btn-save">
+                            <span class="btn-icon">＋</span>Save Sample
+                        </button>
+                        <button class="ghost" id="btn-retrain">
+                            <span class="btn-icon">↻</span>Retrain
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Keyboard shortcuts -->
+            <div>
+                <div class="section-label">Shortcuts</div>
+                <div class="kb-hints" style="margin-top: 8px;">
+                    <div class="kb-hint"><span>Predict</span><kbd>Enter</kbd></div>
+                    <div class="kb-hint"><span>Undo</span><kbd>Ctrl + Z</kbd></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="panel-footer">
+            <div id="status">
+                <div class="status-text">Ready</div>
+            </div>
+        </div>
     </div>
 
-    <script src="/script.js"></script>
+    <script>
+        const canvas = document.getElementById('whiteboard');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status').querySelector('.status-text');
+        const predLabel = document.getElementById('pred-label');
+        const confBar = document.getElementById('conf-bar');
+        const confValue = document.getElementById('conf-value');
+        const statusDot = document.getElementById('status-dot');
+        const predCard = document.getElementById('pred-card');
+        const coordsEl = document.getElementById('canvas-coords');
+
+        let isDrawing = false;
+        let strokes = [];
+        let currentStroke = null;
+        let lastPredictTime = 0;
+        const PREDICT_DELAY = 400;
+        const BRUSH_SIZE = 10;
+        let debounceTimer = null;
+
+        function clearCanvas() {
+            ctx.fillStyle = '#060608';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        clearCanvas();
+
+        function setStatus(msg, type = 'ready') {
+            statusEl.textContent = msg;
+            statusDot.className = 'status-dot';
+            if (type === 'busy') statusDot.classList.add('busy');
+            else if (type === 'error') statusDot.classList.add('error');
+        }
+
+        // Track mouse position for coords display
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = Math.round((e.clientX - rect.left) * scaleX);
+            const y = Math.round((e.clientY - rect.top) * scaleY);
+            coordsEl.textContent = `x: ${String(x).padStart(3,'0')} · y: ${String(y).padStart(3,'0')}`;
+        });
+
+        function startStroke(e) {
+            isDrawing = true;
+            currentStroke = document.createElement('canvas');
+            currentStroke.width = canvas.width;
+            currentStroke.height = canvas.height;
+            const sCtx = currentStroke.getContext('2d');
+            sCtx.drawImage(canvas, 0, 0);
+            strokes.push(currentStroke);
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = BRUSH_SIZE * 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.clientX, clientY = e.clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            ctx.moveTo((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.clientX, clientY = e.clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            ctx.lineTo((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
+            ctx.stroke();
+
+            if (Date.now() - lastPredictTime > PREDICT_DELAY) {
+                livePredict();
+                lastPredictTime = Date.now();
+            } else {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(livePredict, PREDICT_DELAY);
+            }
+        }
+
+        function stopStroke() {
+            if (!isDrawing) return;
+            isDrawing = false;
+            ctx.closePath();
+        }
+
+        canvas.addEventListener('mousedown', startStroke);
+        canvas.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopStroke);
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); startStroke(e); });
+        canvas.addEventListener('touchmove', e => { e.preventDefault(); draw(e); });
+        canvas.addEventListener('touchend', e => { e.preventDefault(); stopStroke(); });
+
+        function undo() {
+            if (strokes.length > 0) {
+                const last = strokes.pop();
+                clearCanvas();
+                ctx.drawImage(last, 0, 0);
+                setTimeout(livePredict, 100);
+            }
+        }
+
+        function clear() {
+            strokes = [];
+            clearCanvas();
+            predLabel.textContent = '—';
+            predLabel.classList.remove('predicted');
+            confBar.style.width = '0%';
+            confValue.textContent = '—';
+            predCard.classList.remove('active');
+        }
+
+        async function livePredict() {
+            try {
+                setStatus('Analyzing…', 'busy');
+                const res = await fetch('https://character-recognitiond.onrender.com/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: canvas.toDataURL('image/png') })
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    if (data.error !== 'Model not loaded') setStatus('⚠ ' + data.error, 'error');
+                    else setStatus('Ready');
+                    return;
+                }
+
+                predLabel.classList.remove('predicted');
+                void predLabel.offsetWidth;
+                predLabel.textContent = data.prediction;
+                predLabel.classList.add('predicted');
+
+                const pct = Math.round(data.confidence * 100);
+                confBar.style.width = pct + '%';
+                confValue.textContent = pct + '%';
+                predCard.classList.add('active');
+
+                setStatus('Prediction ready', 'ready');
+            } catch (err) {
+                console.error(err);
+                setStatus('Connection error', 'error');
+            }
+        }
+
+        async function saveSample() {
+            const label = document.getElementById('label-entry').value;
+            setStatus('Saving sample…', 'busy');
+            try {
+                const res = await fetch('https://character-recognitiond.onrender.com/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: canvas.toDataURL('image/png'), label })
+                });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                setStatus('✓ ' + data.message);
+                clear();
+            } catch (e) {
+                setStatus('✕ ' + e.message, 'error');
+            }
+        }
+
+        async function retrain() {
+            setStatus('Retraining model…', 'busy');
+            try {
+                const res = await fetch('https://character-recognitiond.onrender.com/retrain', { method: 'POST' });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                setStatus('✓ ' + data.message);
+            } catch (e) {
+                setStatus('✕ ' + e.message, 'error');
+            }
+        }
+
+        document.getElementById('btn-predict').onclick = livePredict;
+        document.getElementById('btn-undo').onclick = undo;
+        document.getElementById('btn-clear').onclick = clear;
+        document.getElementById('btn-save').onclick = saveSample;
+        document.getElementById('btn-retrain').onclick = retrain;
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Enter') livePredict();
+            if (e.key === 'z' && e.ctrlKey) undo();
+        });
+    </script>
 </body>
 </html>
